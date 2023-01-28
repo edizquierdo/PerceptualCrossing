@@ -935,7 +935,7 @@ void NeuralTracesNoFixed(TVector<double> &genotype)
 
 
 // ------------------------------------
-//XX 
+//  XX 
 // ------------------------------------
 void PerformanceCheck(TVector<double> &genotype)
 {

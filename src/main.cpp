@@ -3,14 +3,14 @@
 #include "CTRNN.h"
 #include "random.h"
 
-#define PRINTOFILE
+// #define PRINTOFILE
 
 // Task params
-const double StepSize = 0.01; 
+const double StepSize = 0.001; //0.01 
 const double RunDuration = 800.0; 
 const double TransDuration = 400.0; 
 
-const double RunDurationMap = 1600.0; 
+const double RunDurationMap = 2500.0; //2500.0; 
 const double TransDurationMap = 1500.0;
 
 const double Fixed1 = 150.0;
@@ -25,7 +25,7 @@ const int STEPPOS1 = 50;
 
 // EA params
 const int POPSIZE = 96;
-const int GENS = 1000;
+const int GENS = 100;
 const double MUTVAR = 0.05;			// ~ 1/VectSize for N=3
 const double CROSSPROB = 0.0;
 const double EXPECTED = 1.1;
@@ -356,6 +356,174 @@ double FitnessFunction2(TVector<double> &genotype, RandomState &rs)
 // ------------------------------------
 // 0. Behavioral Traces
 // ------------------------------------
+void BehavioralTracesPair(TVector<double> &genotype1, TVector<double> &genotype2)
+{
+	// Start output file
+	ofstream a1file("a1_pos.dat");
+	ofstream a2file("a2_pos.dat");
+
+	// Map genootype to phenotype
+	TVector<double> phenotype1;
+	phenotype1.SetBounds(1, VectSize);
+	GenPhenMapping(genotype1, phenotype1);
+	TVector<double> phenotype2;
+	phenotype2.SetBounds(1, VectSize);
+	GenPhenMapping(genotype2, phenotype2);
+
+	// Create the agents
+	PerceptualCrosser Agent1(1,N);
+	PerceptualCrosser Agent2(-1,N);
+
+	// Instantiate the nervous systems
+	Agent1.NervousSystem.SetCircuitSize(N);
+	Agent2.NervousSystem.SetCircuitSize(N);
+	int k = 1;
+
+	// Time-constants
+	for (int i = 1; i <= N; i++) {
+		Agent1.NervousSystem.SetNeuronTimeConstant(i,phenotype1(k));
+		Agent2.NervousSystem.SetNeuronTimeConstant(i,phenotype2(k));
+		k++;
+	}
+	// Biases
+	for (int i = 1; i <= N; i++) {
+		Agent1.NervousSystem.SetNeuronBias(i,phenotype1(k));
+		Agent2.NervousSystem.SetNeuronBias(i,phenotype2(k));
+		k++;
+	}
+	// Weights
+	for (int i = 1; i <= N; i++) {
+		for (int j = 1; j <= N; j++) {
+			Agent1.NervousSystem.SetConnectionWeight(i,j,phenotype1(k));
+			Agent2.NervousSystem.SetConnectionWeight(i,j,phenotype2(k));
+			k++;
+		}
+	}
+	// Sensor Weights
+	for (int i = 1; i <= N; i++) {
+		Agent1.SetSensorWeight(i,phenotype1(k));
+		Agent2.SetSensorWeight(i,phenotype2(k));
+		k++;
+	}
+
+	double shadow1, shadow2;
+
+	for (double x1 = 0.0; x1 < SpaceSize; x1 += 50.0) {
+		for (double x2 = 0.0; x2 < SpaceSize - x1; x2 += 50.0) {
+
+			// Set agents positions
+			Agent1.Reset(x1);
+			Agent2.Reset(x2);
+
+			// Run the sim
+			for (double time = 0; time < RunDuration; time += StepSize)
+			{
+				// Update shadow positions
+				shadow1 = Agent1.pos + Shadow;
+				if (shadow1 >= SpaceSize)
+					shadow1 = shadow1 - SpaceSize;
+				if (shadow1 < 0.0)
+					shadow1 = SpaceSize + shadow1;
+
+				// XXX shadow2 = Agent2.pos - Shadow;
+				shadow2 = Agent2.pos + Shadow;
+				if (shadow2 >= SpaceSize)
+					shadow2 = shadow2 - SpaceSize;
+				if (shadow2 < 0.0)
+					shadow2 = SpaceSize + shadow2;
+
+				// Sense
+				Agent1.Sense(Agent2.pos, shadow2, Fixed2);
+				Agent2.Sense(Agent1.pos, shadow1, Fixed1);
+
+				// Move
+				Agent1.Step(StepSize);
+				Agent2.Step(StepSize);
+
+				// Save
+				a1file << Agent1.pos << " ";
+				a2file << Agent2.pos << " ";
+			}
+			a1file << endl;
+			a2file << endl;
+		}
+	}
+	a1file.close();
+	a2file.close();
+}
+
+
+
+void SingleBehavioralTrace(TVector<double> &genotype)
+{
+	// Start output file
+	ofstream afile("singlebehavioraltrace.dat");
+
+	// Map genotype to phenotype
+	TVector<double> phenotype;
+	phenotype.SetBounds(1, VectSize);
+	GenPhenMapping(genotype, phenotype);
+
+	// Create the agents
+	PerceptualCrosser Agent1(1,N);
+	PerceptualCrosser Agent2(-1,N);
+
+	// Instantiate the nervous systems
+	Agent1.NervousSystem.SetCircuitSize(N);
+	Agent2.NervousSystem.SetCircuitSize(N);
+	int k = 1;
+
+	// Time-constants
+	for (int i = 1; i <= N; i++) {
+		Agent1.NervousSystem.SetNeuronTimeConstant(i,phenotype(k));
+		Agent2.NervousSystem.SetNeuronTimeConstant(i,phenotype(k));
+		k++;
+	}
+	// Biases
+	for (int i = 1; i <= N; i++) {
+		Agent1.NervousSystem.SetNeuronBias(i,phenotype(k));
+		Agent2.NervousSystem.SetNeuronBias(i,phenotype(k));
+		k++;
+	}
+	// Weights
+	for (int i = 1; i <= N; i++) {
+		for (int j = 1; j <= N; j++) {
+			Agent1.NervousSystem.SetConnectionWeight(i,j,phenotype(k));
+			Agent2.NervousSystem.SetConnectionWeight(i,j,phenotype(k));
+			k++;
+		}
+	}
+	// Sensor Weights
+	for (int i = 1; i <= N; i++) {
+		Agent1.SetSensorWeight(i,phenotype(k));
+		Agent2.SetSensorWeight(i,phenotype(k));
+		k++;
+	}
+
+	double x1 = 0.0; 
+	double x2 = 200.0;
+
+	// Set agents positions
+	Agent1.Reset(x1);
+	Agent2.Reset(x2);
+
+	// Run the sim
+	for (double time = 0; time < RunDuration; time += StepSize)
+	{
+		// Sense
+		Agent1.Sense(Agent2.pos, 999999999, 999999999); 
+		Agent2.Sense(Agent1.pos, 999999999, 999999999); 			
+
+		// Move
+		Agent1.Step(StepSize);
+		Agent2.Step(StepSize);
+
+		// Save
+		afile << Agent1.pos << " " << Agent2.pos << endl;
+	}
+	afile.close();
+}
+
 void BehavioralTracesRegular(TVector<double> &genotype)
 {
 	// Start output file
@@ -449,6 +617,7 @@ void BehavioralTracesRegular(TVector<double> &genotype)
 	a1file.close();
 	a2file.close();
 }
+
 void BehavioralTracesNoShadow(TVector<double> &genotype)
 {
 	// Start output file
@@ -935,7 +1104,7 @@ void NeuralTracesNoFixed(TVector<double> &genotype)
 
 
 // ------------------------------------
-//  XX 
+//XX 
 // ------------------------------------
 void PerformanceCheck(TVector<double> &genotype)
 {
@@ -1807,16 +1976,18 @@ double PairTest(TVector<double> &genotype1, TVector<double> &genotype2)
 	outfile.close();
 	return totalfittrans/totaltrials;
 }
+
 // ------------------------------------
 // 3. Decoy analysis
 // ------------------------------------
-void DecoyMap(TVector<double> &genotype, double frequency)
+void DecoyMap(TVector<double> &genotype)
 {
 	// Start output file
-	ofstream fitfile("dm_fit_freq_"+to_string(frequency)+".dat");
-	ofstream fittransfile("dm_fittran_freq_"+to_string(frequency)+".dat");
-	ofstream distfile("dm_dist_freq_"+to_string(frequency)+".dat");
-	ofstream crossfile("dm_cross_freq_"+to_string(frequency)+".dat");
+	// ofstream decoytracefile("trace_decoy.dat");
+	// ofstream agenttracefile("trace_agent_f0.1_a1.dat");
+	ofstream crossfile("decoymap_crosses.dat");
+	ofstream proxfile("decoymap_proximity.dat");
+	ofstream agentfreqfile("decoymap_agentfreq.dat");
 
 	// Map genootype to phenotype
 	TVector<double> phenotype;
@@ -1825,7 +1996,8 @@ void DecoyMap(TVector<double> &genotype, double frequency)
 
 	// Create the agents
 	PerceptualCrosser Agent1(1,N);
-	double pos, pastpos;
+	double pos, pastpos, pastpastpos;
+	double agentpos, agentpastpos, agentpastpastpos; 
 
 	// Instantiate the nervous systems
 	Agent1.NervousSystem.SetCircuitSize(N);
@@ -1854,203 +2026,200 @@ void DecoyMap(TVector<double> &genotype, double frequency)
 		k++;
 	}
 
-	double totalfit = 0.0, totalfittrans = 0.0, totaldist = 0.0, totaldisttrans = 0.0, dist = 0.0;
-	int totaltrials = 0, totaltime = 0, totaltimetrans;
-	double shadow1, shadow2;
-	double totalcross = 0;
-	int crosscounter;
-	double avgtotaldist = 0.0, avgtotaldisttrans = 0.0, avgcrosses = 0.0;
-	int totalshadows = 0;
+	int crosscounter,peakcounter,agentpeakcounter;
+	double dist,distsum;
 
-	for (double amplitude = 0; amplitude <= 4.0; amplitude += 0.01) {
-		for (double velocity = -2; velocity <= 2.0; velocity += 0.01) {
+	for (double frequency = 0.01; frequency <= 2.01; frequency += 0.01) {
+		for (double amplitude = 0.005; amplitude <= 1.005; amplitude += 0.005) {
 
 			// Set agents positions
-			Agent1.Reset(0.0);
-			pos = 300.0;
-
-			// Run the sim
-			totaldist = 0.0;
-			totaltime = 0;
-			totaldisttrans = 0.0;
-			totaltimetrans = 0;
-			crosscounter = 0;
-
-			for (double time = 0; time < RunDuration; time += StepSize)
-			{
-				// Move decoy
-				pastpos = pos;
-				pos += StepSize * (velocity + (amplitude * sin(frequency*time)));
-				// Wrap-around Environment
-				if (pos >= SpaceSize)
-					pos = pos - SpaceSize;
-				if (pos < 0.0)
-					pos = SpaceSize + pos;
-
-				// Sense
-				Agent1.Sense(pos, 999999999, 999999999);
-
-				// Move
-				Agent1.Step(StepSize);
-
-				// Measure number of times the agents cross paths
-				if (((Agent1.pastpos < pastpos) && (Agent1.pos >= pos)) || ((Agent1.pastpos > pastpos) && (Agent1.pos <= pos)))
-				{
-					crosscounter += 1;
-				}
-
-				// Measure distance between them
-				dist = fabs(pos - Agent1.pos);
-				if (dist > HalfSpace)
-					dist =  SpaceSize - dist;
-				totaldist += dist;
-				totaltime += 1;
-
-				// Measure distance also for the fitness calc
-				if (time > TransDuration)
-				{
-					if (dist < CloseEnoughRange)
-						dist = CloseEnoughRange;
-					totaldisttrans += dist;
-					totaltimetrans += 1;
-				}
-
-			}
-
-			// Save the results
-			fitfile << amplitude << " " << velocity << " " << 1 - (((totaldist / totaltime) - CloseEnoughRange) / (HalfSpace - CloseEnoughRange)) << endl;
-			fittransfile << amplitude << " " << velocity << " " << 1 - (((totaldisttrans / totaltimetrans) - CloseEnoughRange) / (HalfSpace - CloseEnoughRange)) << endl;
-			distfile <<  amplitude << " " << velocity << " " << Agent1.pos << endl;
-			crossfile << amplitude << " " << velocity << " " << crosscounter << endl;
-			totalfit += 1 - (((totaldist / totaltime) - CloseEnoughRange) / (HalfSpace - CloseEnoughRange));
-			totalfittrans += 1 - (((totaldisttrans / totaltimetrans) - CloseEnoughRange) / (HalfSpace - CloseEnoughRange));
-			totaltrials += 1;
-		}
-	}
-	fitfile.close();
-	fittransfile.close();
-	distfile.close();
-	crossfile.close();
-	cout << "Robust performance: " << totalfit/totaltrials << " " << totalfittrans/totaltrials << endl;
-}
-
-// ------------------------------------
-// 3. Decoy analysis
-// ------------------------------------
-void DecoyMapFixedVel(TVector<double> &genotype)
-{
-	// Start output file
-	ofstream fittransfile("dm_fittran_vel0.dat");
-	ofstream crossfile("dm_cross_vel0.dat");
-
-	// Map genootype to phenotype
-	TVector<double> phenotype;
-	phenotype.SetBounds(1, VectSize);
-	GenPhenMapping(genotype, phenotype);
-
-
-	// Create the agents
-	PerceptualCrosser Agent1(1,N);
-	double pos, pastpos;
-
-	// Instantiate the nervous systems
-	Agent1.NervousSystem.SetCircuitSize(N);
-	int k = 1;
-
-	// Time-constants
-	for (int i = 1; i <= N; i++) {
-		Agent1.NervousSystem.SetNeuronTimeConstant(i,phenotype(k));
-		k++;
-	}
-	// Biases
-	for (int i = 1; i <= N; i++) {
-		Agent1.NervousSystem.SetNeuronBias(i,phenotype(k));
-		k++;
-	}
-	// Weights
-	for (int i = 1; i <= N; i++) {
-		for (int j = 1; j <= N; j++) {
-			Agent1.NervousSystem.SetConnectionWeight(i,j,phenotype(k));
-			k++;
-		}
-	}
-	// Sensor Weights
-	for (int i = 1; i <= N; i++) {
-		Agent1.SetSensorWeight(i,phenotype(k));
-		k++;
-	}
-
-	double totalfittrans = 0.0, totaldisttrans = 0.0, dist = 0.0;
-	int totaltrials = 0, totaltimetrans;
-	double shadow1, shadow2;
-	double totalcross = 0;
-	int crosscounter;
-
-	for (double frequency = 0.0; frequency <= 1.0; frequency += 0.005) {
-		for (double amplitude = 0.0; amplitude <= 1.0; amplitude += 0.005) {
-
-			// Set agents positions
-			Agent1.Reset(0.0);
+			Agent1.Reset(0.0); 
 			pos = 100.0;
+			pastpos = pos;
+
+			agentpos = Agent1.pos;
+			agentpastpos = agentpos;
 
 			// Run the sim
-			totaldisttrans = 0.0;
-			totaltimetrans = 0;
 			crosscounter = 0;
+			peakcounter = 0;
+			agentpeakcounter = 0;
+			distsum = 0.0;
 
 			for (double time = 0; time < RunDurationMap; time += StepSize)
 			{
 				// Move decoy
+				pastpastpos = pastpos;
 				pastpos = pos;
 				pos = 100 + amplitude * sin(frequency*time);
-				// pos = 300;
-				// // Wrap-around Environment
-				// if (pos >= SpaceSize)
-				// 	pos = pos - SpaceSize;
-				// if (pos < 0.0)
-				// 	pos = SpaceSize + pos;
 
 				// Sense
 				Agent1.Sense(pos, 999999999, 999999999);
 
 				// Move
+				agentpastpastpos = agentpastpos;
+				agentpastpos = agentpos;
 				Agent1.Step(StepSize);
-
-				// Measure distance between them
-				dist = fabs(pos - Agent1.pos);
-				if (dist > HalfSpace)
-					dist =  SpaceSize - dist;
+				agentpos = Agent1.pos;
 
 				// Measure distance also for the fitness calc
 				if (time > TransDurationMap)
 				{
-					if (dist < CloseEnoughRange)
-						dist = CloseEnoughRange;
-					totaldisttrans += dist;
-					totaltimetrans += 1;
-
+					// decoytracefile << pos << endl;
+					// agenttracefile << Agent1.pos << endl;
+					// Count number of periods by decoy
+					if ((pastpos > pastpastpos) && (pastpos > pos))
+					{
+						peakcounter++;
+					}
+					// // Count number of periods by decoy
+					if ((agentpastpos > agentpastpastpos) && (agentpastpos > agentpos))
+					{
+						agentpeakcounter++;
+					}
 					// Measure number of times the agents cross paths
 					if (((Agent1.pastpos < pastpos) && (Agent1.pos >= pos)) || ((Agent1.pastpos > pastpos) && (Agent1.pos <= pos)))
 					{
-						crosscounter += 1;
-					}					
+						crosscounter++;
+					}		
+					// Measure distance between them
+					dist = fabs(pos - Agent1.pos);
+					if (dist > HalfSpace)
+						dist =  SpaceSize - dist;	
+					distsum += StepSize*dist;		
 				}
 
 			}
-			double fit;
 			// Save the results
-			fit = 1 - (((totaldisttrans / totaltimetrans) - CloseEnoughRange) / (HalfSpace - CloseEnoughRange));
-			if (fit < 0.97)
-				fit = 0.5;
-			fittransfile << amplitude << " " << frequency << " " << fit << endl;
-			crossfile << amplitude << " " << frequency << " " << crosscounter << endl;
-
+			// crossfile << amplitude << " " << peakcounter/(RunDurationMap-TransDurationMap) << " " << crosscounter/peakcounter << endl;
+			// proxfile << amplitude << " " << peakcounter/(RunDurationMap-TransDurationMap) << " " << distsum/(RunDurationMap-TransDurationMap) << endl;
+			// agentfreqfile << amplitude << " " << peakcounter/(RunDurationMap-TransDurationMap) << " " << agentpeakcounter/(RunDurationMap-TransDurationMap) << endl;
+			crossfile << 2*amplitude << " " << 0.1585*frequency << " " << crosscounter/peakcounter << endl;
+			proxfile << 2*amplitude << " " << 0.1585*frequency << " " << distsum/(RunDurationMap-TransDurationMap) << endl;
+			agentfreqfile << 2*amplitude << " " << 0.1585*frequency << " " << agentpeakcounter/(RunDurationMap-TransDurationMap) << endl;
 		}
 	}
-	fittransfile.close();
+	// cout << peakcounter/(RunDurationMap-TransDurationMap) << endl;
+	// decoytracefile.close();
+	// agenttracefile.close();
 	crossfile.close();
+	proxfile.close();
+	agentfreqfile.close();
 }
 
+// ------------------------------------
+// 3. Decoy analysis
+// ------------------------------------
+void DecoyMapTrace(TVector<double> &genotype)
+{
+	// Start output file
+	ofstream decoytracefile("trace_decoy.dat");
+	ofstream agenttracefile("trace_agent.dat");
+
+	// Map genootype to phenotype
+	TVector<double> phenotype;
+	phenotype.SetBounds(1, VectSize);
+	GenPhenMapping(genotype, phenotype);
+
+	// Create the agents
+	PerceptualCrosser Agent1(1,N);
+	double pos, pastpos, pastpastpos;
+	double agentpos, agentpastpos, agentpastpastpos; 
+
+	// Instantiate the nervous systems
+	Agent1.NervousSystem.SetCircuitSize(N);
+	int k = 1;
+
+	// Time-constants
+	for (int i = 1; i <= N; i++) {
+		Agent1.NervousSystem.SetNeuronTimeConstant(i,phenotype(k));
+		k++;
+	}
+	// Biases
+	for (int i = 1; i <= N; i++) {
+		Agent1.NervousSystem.SetNeuronBias(i,phenotype(k));
+		k++;
+	}
+	// Weights
+	for (int i = 1; i <= N; i++) {
+		for (int j = 1; j <= N; j++) {
+			Agent1.NervousSystem.SetConnectionWeight(i,j,phenotype(k));
+			k++;
+		}
+	}
+	// Sensor Weights
+	for (int i = 1; i <= N; i++) {
+		Agent1.SetSensorWeight(i,phenotype(k));
+		k++;
+	}
+
+	int crosscounter,peakcounter,agentpeakcounter;
+	double dist,distsum;
+
+	double frequency = 0.09/0.1585;	// 0.09
+	double amplitude = 0.8/2; 		// 0.8, 
+	
+	// Set agents positions
+	Agent1.Reset(0.0); 
+	pos = 100.0;
+	pastpos = pos;
+
+	agentpos = Agent1.pos;
+	agentpastpos = agentpos;
+
+	// Run the sim
+	crosscounter = 0;
+	peakcounter = 0;
+	agentpeakcounter = 0;
+	distsum = 0.0;
+
+	for (double time = 0; time < RunDurationMap; time += StepSize)
+	{
+		// Move decoy
+		pastpastpos = pastpos;
+		pastpos = pos;
+		pos = 100 + amplitude * sin(frequency*time);
+
+		// Sense
+		Agent1.Sense(pos, 999999999, 999999999);
+
+		// Move
+		agentpastpastpos = agentpastpos;
+		agentpastpos = agentpos;
+		Agent1.Step(StepSize);
+		agentpos = Agent1.pos;
+
+		// Measure distance also for the fitness calc
+		if (time > TransDurationMap)
+		{
+			decoytracefile << pos << endl;
+			agenttracefile << Agent1.pos << endl;
+			// Count number of periods by decoy
+			if ((pastpos > pastpastpos) && (pastpos > pos))
+			{
+				peakcounter++;
+			}
+			// // Count number of periods by decoy
+			if ((agentpastpos > agentpastpastpos) && (agentpastpos > agentpos))
+			{
+				agentpeakcounter++;
+			}
+			// Measure number of times the agents cross paths
+			if (((Agent1.pastpos < pastpos) && (Agent1.pos >= pos)) || ((Agent1.pastpos > pastpos) && (Agent1.pos <= pos)))
+			{
+				crosscounter++;
+			}		
+			// Measure distance between them
+			dist = fabs(pos - Agent1.pos);
+			if (dist > HalfSpace)
+				dist =  SpaceSize - dist;	
+			distsum += StepSize*dist;		
+		}
+
+	}
+	decoytracefile.close();
+	agenttracefile.close();
+}
 
 void LimitSet(TVector<double> &genotype, double sensorstate)
 {
@@ -2233,7 +2402,6 @@ void InteractionNeuralLimitSet(TVector<double> &genotype)
 	inlfile.close();
 }
 
-
 double Handedness(TVector<double> &genotype)
 {
 	// Map genotype to phenotype
@@ -2411,6 +2579,9 @@ int main (int argc, const char* argv[])
 	// genefile.open("best.gen.dat");
 	// TVector<double> genotype(1, VectSize);
 	// genefile >> genotype;
+	// //DecoyMap(genotype);
+	// DecoyMapTrace(genotype);
+	// genefile.close();
 
 	// PerformanceCheck(genotype);
 	// for (double sensorstate = 0.0; sensorstate <= 1.0; sensorstate += 0.1)
@@ -2450,8 +2621,8 @@ int main (int argc, const char* argv[])
 // ================================================
 	string g1 = argv[1];
 	string g2 = argv[2];	
-	string r1 = argv[3];
-	string r2 = argv[4];
+	// string r1 = argv[3];
+	// string r2 = argv[4];
 
 	ifstream genefile1;
 	genefile1.open(g1+"/best.gen.dat");
@@ -2463,11 +2634,13 @@ int main (int argc, const char* argv[])
 	TVector<double> genotype2(1, VectSize);
 	genefile2 >> genotype2;
 
-	double result = PairTest(genotype1, genotype2);
-	ofstream otherfile;
-	otherfile.open("othersmatrix_new.dat", std::ios_base::app);
-	otherfile << r1 << " " << r2 << " " << result << endl;
-	otherfile.close();
+	BehavioralTracesPair(genotype1, genotype2);
+
+	// double result = PairTest(genotype1, genotype2);
+	// ofstream otherfile;
+	// otherfile.open("othersmatrix_new.dat", std::ios_base::app);
+	// otherfile << r1 << " " << r2 << " " << result << endl;
+	// otherfile.close();
 
 	// double result1 = Handedness(genotype1);
 	// double result2 = Handedness(genotype2);

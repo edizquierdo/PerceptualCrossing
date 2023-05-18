@@ -1,6 +1,8 @@
 # Perceptual Crossing Task 
 
-Work submitted to the Artificial Life Journal, January 2023.
+Code and data for the Perceptual Crossing experiments, as described in work in two publications in Press: 
+- Artificial Life Journal, January 2023.
+- Artificial Life Proceedings 2023. 
 
 This is a replication and extension of the perceptual crossing simulation studies, which are aimed at challenging methodological individualism in the analysis of social cognition by studying multi-agent real-time interactions. 
 
